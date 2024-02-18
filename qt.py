@@ -1,56 +1,67 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLineEdit, QListView, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QPushButton,
+    QLineEdit,
+    QListView,
+    QWidget,
+    QVBoxLayout,
+)
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
-import requests
+from typing import List
+from src.api import ServerAPI
+
 
 class MyMainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, server_api: ServerAPI):
         super(MyMainWindow, self).__init__()
+        self.server_api = server_api
 
-        self.lineEdit = QLineEdit(self)
-        self.listView = QListView(self)
-        self.buttonPost = QPushButton('Отправить данные', self)
-        self.buttonGet = QPushButton('Получить данные', self)
+        self.line_edit = QLineEdit(self)
+        self.line_edit.setPlaceholderText("Введите текстовую информацию")
+        self.list_view = QListView(self)
+        self.button_post = QPushButton("Отправить данные", self)
+        self.button_get = QPushButton("Получить данные", self)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.lineEdit)
-        layout.addWidget(self.buttonPost)
-        layout.addWidget(self.buttonGet)
-        layout.addWidget(self.listView)
+        layout.addWidget(self.line_edit)
+        layout.addWidget(self.button_post)
+        layout.addWidget(self.button_get)
+        layout.addWidget(self.list_view)
 
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
-        self.buttonGet.clicked.connect(self.fetch_and_update_data)
-        self.buttonPost.clicked.connect(self.send_data_to_server)
+        self.button_get.clicked.connect(self.fetch_and_update_data)
+        self.button_post.clicked.connect(self.send_data_to_server)
 
-    def request_for_all_data(self):
-        response = requests.get('http://127.0.0.1:5000/get')
-        return response.json()
+        self.setFixedSize(800, 400)
 
-    def fetch_and_update_data(self):
-        data = self.request_for_all_data()
-        self.update_list_view(data)
-
-    def update_list_view(self, data):
+    def update_list_view(self, data: List[list]):
         model = QStandardItemModel()
         for row in data:
-            lst = [str(item) for item in row]
-            model.appendRow(QStandardItem(":".join(lst)))
-        self.listView.setModel(model)
+            formatted_string = (
+                f"номер клика - {row[0]}: введенный текст - {row[1]}: "
+                f"дата отправки - {row[2]}: время отправки - {row[3]} "
+            )
+            model.appendRow(QStandardItem(formatted_string))
+        self.list_view.setModel(model)
+
+    def fetch_and_update_data(self):
+        data = self.server_api.get_all_data()
+        self.update_list_view(data)
 
     def send_data_to_server(self):
-        text_to_send = self.lineEdit.text()
+        text_to_send = self.line_edit.text()
         if text_to_send:
-            try:
-                response = requests.post('http://127.0.0.1:5000/add', json={'data': text_to_send})
-                return response
-            except requests.exceptions.RequestException as e:
-                print(f"Error sending data to server: {e}")
+            response = self.server_api.post_data(text_to_send)
+            return response
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = QApplication([])
-    window = MyMainWindow()
+    server_api = ServerAPI()
+    window = MyMainWindow(server_api)
     window.show()
     app.exec()

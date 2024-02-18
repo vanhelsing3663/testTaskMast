@@ -2,3 +2,5 @@ __pycache__
 __init__
 .idea
 venv
+.pytest_cache
+.vscode
